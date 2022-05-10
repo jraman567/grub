@@ -3987,7 +3987,7 @@ grub_zfs_getmdnobj (grub_device_t dev, const char *fsfilename,
 
 static grub_err_t
 fill_fs_info (struct grub_dirhook_info *info,
-	      dnode_end_t mdn, struct grub_zfs_data *data)
+	      dnode_end_t *mdn, struct grub_zfs_data *data)
 {
   grub_err_t err;
   dnode_end_t dn;
@@ -3998,21 +3998,21 @@ fill_fs_info (struct grub_dirhook_info *info,
 
   info->dir = 1;
 
-  if (mdn.dn.dn_type == DMU_OT_DSL_DIR)
+  if (mdn->dn.dn_type == DMU_OT_DSL_DIR)
     {
-      headobj = grub_zfs_to_cpu64 (((dsl_dir_phys_t *) DN_BONUS (&mdn.dn))->dd_head_dataset_obj, mdn.endian);
+      headobj = grub_zfs_to_cpu64 (((dsl_dir_phys_t *) DN_BONUS (&mdn->dn))->dd_head_dataset_obj, mdn->endian);
 
-      err = dnode_get (&(data->mos), headobj, 0, &mdn, data);
+      err = dnode_get (&(data->mos), headobj, 0, mdn, data);
       if (err)
 	{
 	  grub_dprintf ("zfs", "failed here\n");
 	  return err;
 	}
     }
-  err = make_mdn (&mdn, data);
+  err = make_mdn (mdn, data);
   if (err)
     return err;
-  err = dnode_get (&mdn, MASTER_NODE_OBJ, DMU_OT_MASTER_NODE,
+  err = dnode_get (mdn, MASTER_NODE_OBJ, DMU_OT_MASTER_NODE,
 		   &dn, data);
   if (err)
     {
@@ -4027,7 +4027,7 @@ fill_fs_info (struct grub_dirhook_info *info,
       return err;
     }
 
-  err = dnode_get (&mdn, objnum, 0, &dn, data);
+  err = dnode_get (mdn, objnum, 0, &dn, data);
   if (err)
     {
       grub_dprintf ("zfs", "failed here\n");
@@ -4150,7 +4150,7 @@ iterate_zap_fs (const char *name, grub_uint64_t val,
   if (mdn.dn.dn_type != DMU_OT_DSL_DIR)
     return 0;
 
-  err = fill_fs_info (&info, mdn, ctx->data);
+  err = fill_fs_info (&info, &mdn, ctx->data);
   if (err)
     {
       grub_errno = 0;
@@ -4181,7 +4181,7 @@ iterate_zap_snap (const char *name, grub_uint64_t val,
   if (mdn.dn.dn_type != DMU_OT_DSL_DATASET)
     return 0;
 
-  err = fill_fs_info (&info, mdn, ctx->data);
+  err = fill_fs_info (&info, &mdn, ctx->data);
   if (err)
     {
       grub_errno = 0;
@@ -4226,7 +4226,7 @@ grub_zfs_dir (grub_device_t device, const char *path,
       dnode_end_t dn;
       struct grub_dirhook_info info;
 
-      err = fill_fs_info (&info, data->dnode, data);
+      err = fill_fs_info (&info, &data->dnode, data);
       if (err)
 	{
 	  zfs_unmount (data);
